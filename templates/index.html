@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instagram GraphQL URL Converter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --void: #0a0714;
+            --void-deep: #050309;
+            --nebula: #17102b;
+            --nebula-light: #201938;
+            --nebula-lighter: #2a2049;
+            --violet: #a855f7;
+            --violet-dim: #7c3aed;
+            --orchid: #e879f9;
+            --indigo: #818cf8;
+            --starlight: #f5f2fb;
+            --mist: #c2b6dd;
+            --mist-dim: #7a6d99;
+            --edge: rgba(168, 85, 247, 0.25);
+            --glow: rgba(168, 85, 247, 0.45);
+            --font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-display);
+            background: var(--void);
+            color: var(--starlight);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background-image:
+                radial-gradient(1.5px 1.5px at 20% 30%, rgba(255,255,255,.4) 0%, transparent 60%),
+                radial-gradient(1.5px 1.5px at 70% 65%, rgba(255,255,255,.3) 0%, transparent 60%),
+                radial-gradient(1px 1px at 45% 15%, rgba(255,255,255,.35) 0%, transparent 60%),
+                radial-gradient(1px 1px at 85% 40%, rgba(255,255,255,.25) 0%, transparent 60%),
+                radial-gradient(1.5px 1.5px at 10% 80%, rgba(255,255,255,.3) 0%, transparent 60%),
+                radial-gradient(1px 1px at 60% 90%, rgba(255,255,255,.25) 0%, transparent 60%),
+                radial-gradient(1px 1px at 35% 55%, rgba(255,255,255,.2) 0%, transparent 60%),
+                radial-gradient(1px 1px at 92% 75%, rgba(255,255,255,.2) 0%, transparent 60%);
+        }
+
+        .bg-orbs {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .bg-orbs span {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: .5;
+        }
+
+        .bg-orbs span:nth-child(1) {
+            width: 480px;
+            height: 480px;
+            top: -140px;
+            left: -120px;
+            background: radial-gradient(circle at 30% 30%, var(--violet), transparent 70%);
+            animation: drift1 26s ease-in-out infinite alternate;
+        }
+
+        .bg-orbs span:nth-child(2) {
+            width: 520px;
+            height: 520px;
+            bottom: -180px;
+            right: -160px;
+            background: radial-gradient(circle at 60% 40%, var(--orchid), transparent 70%);
+            animation: drift2 32s ease-in-out infinite alternate;
+        }
+
+        .bg-orbs span:nth-child(3) {
+            width: 360px;
+            height: 360px;
+            top: 45%;
+            left: 62%;
+            background: radial-gradient(circle at 50% 50%, var(--indigo), transparent 70%);
+            animation: drift3 22s ease-in-out infinite alternate;
+        }
+
+        @keyframes drift1 { from { transform: translate(0,0) scale(1); } to { transform: translate(60px,40px) scale(1.15); } }
+        @keyframes drift2 { from { transform: translate(0,0) scale(1); } to { transform: translate(-50px,-30px) scale(1.1); } }
+        @keyframes drift3 { from { transform: translate(0,0) scale(1); } to { transform: translate(-40px,50px) scale(1.2); } }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            background:
+                linear-gradient(180deg, var(--nebula), var(--void-deep)) padding-box,
+                linear-gradient(135deg, var(--violet), var(--orchid) 50%, var(--indigo)) border-box;
+            border: 1px solid transparent;
+            border-radius: 28px;
+            box-shadow:
+                0 1px 0 rgba(255,255,255,.06) inset,
+                0 40px 100px -20px rgba(168,85,247,.35),
+                0 20px 45px -15px rgba(0,0,0,.65);
+            backdrop-filter: blur(20px);
+            max-width: 900px;
+            width: 100%;
+            padding: 48px;
+        }
+
+        .header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 36px;
+            text-align: center;
+        }
+
+        .graph-icon {
+            margin-bottom: 2px;
+            filter: drop-shadow(0 4px 14px rgba(168,85,247,.5));
+        }
+
+        .graph-icon .node { transform-origin: center; }
+        .graph-icon .n1 { animation: floatY 3.6s ease-in-out infinite; }
+        .graph-icon .n2 { animation: floatY 4.2s ease-in-out infinite .3s; }
+        .graph-icon .n3 { animation: floatY 3.8s ease-in-out infinite .6s; }
+
+        @keyframes floatY {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+
+        h1 {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 28px;
+            letter-spacing: -0.01em;
+            background: linear-gradient(135deg, var(--starlight), var(--orchid) 55%, var(--violet));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .subtitle {
+            color: var(--mist);
+            font-size: 14px;
+            font-weight: 400;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-family: var(--font-display);
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--starlight);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::before {
+            content: "";
+            width: 6px;
+            height: 6px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--violet), var(--orchid));
+            box-shadow: 0 0 10px var(--glow);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        input[type="text"], textarea {
+            flex: 1;
+            min-width: 200px;
+            padding: 13px 16px;
+            background: var(--nebula-light);
+            border: 1px solid var(--edge);
+            border-radius: 12px;
+            color: var(--starlight);
+            font-size: 14px;
+            font-family: var(--font-mono);
+            box-shadow: inset 0 2px 8px rgba(0,0,0,.4);
+            transition: border-color 0.25s, box-shadow 0.25s;
+        }
+
+        input[type="text"]::placeholder, textarea::placeholder {
+            color: var(--mist-dim);
+            font-family: var(--font-display);
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: var(--violet);
+            box-shadow: inset 0 2px 8px rgba(0,0,0,.4), 0 0 0 4px rgba(168,85,247,.18), 0 0 20px rgba(168,85,247,.25);
+        }
+
+        textarea {
+            flex: 1 1 100%;
+            min-height: 250px;
+            min-width: 100%;
+            resize: none;
+            font-size: 13px;
+        }
+
+        textarea::-webkit-scrollbar { width: 8px; }
+        textarea::-webkit-scrollbar-track { background: var(--void-deep); border-radius: 8px; }
+        textarea::-webkit-scrollbar-thumb { background: var(--violet-dim); border-radius: 8px; }
+
+        button {
+            padding: 13px 22px;
+            border: none;
+            border-radius: 12px;
+            font-family: var(--font-display);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform .15s ease, box-shadow .15s ease, background .2s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--violet), var(--orchid));
+            color: #1a0e2e;
+            flex: 1;
+            min-width: 150px;
+            box-shadow: 0 4px 0 var(--violet-dim), 0 10px 24px rgba(168,85,247,.45);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 var(--violet-dim), 0 16px 32px rgba(168,85,247,.55);
+        }
+
+        .btn-primary:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 var(--violet-dim), 0 6px 14px rgba(168,85,247,.4);
+        }
+
+        .btn-secondary {
+            background: var(--nebula-light);
+            color: var(--starlight);
+            border: 1px solid var(--edge);
+            flex: 1;
+            min-width: 130px;
+            box-shadow: 0 4px 0 rgba(0,0,0,.5), 0 8px 18px rgba(0,0,0,.35);
+        }
+
+        .btn-secondary:hover {
+            background: var(--nebula-lighter);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 rgba(0,0,0,.5), 0 12px 24px rgba(0,0,0,.4);
+        }
+
+        .btn-secondary:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 rgba(0,0,0,.5), 0 4px 10px rgba(0,0,0,.3);
+        }
+
+        button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible {
+            outline: 2px solid var(--orchid);
+            outline-offset: 2px;
+        }
+
+        .output-box {
+            background: var(--void-deep);
+            border: 1px solid var(--edge);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 10px;
+            word-break: break-all;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: var(--orchid);
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,.5);
+        }
+
+        .output-box.empty {
+            color: var(--mist-dim);
+            font-style: italic;
+        }
+
+        .alert {
+            padding: 14px 16px;
+            border: 1px solid;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            backdrop-filter: blur(8px);
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .alert-success {
+            background: rgba(52,211,153,.12);
+            color: #6ee7b7;
+            border-color: rgba(52,211,153,.35);
+        }
+
+        .alert-error {
+            background: rgba(251,113,133,.12);
+            color: #fca5b1;
+            border-color: rgba(251,113,133,.35);
+        }
+
+        .alert-info {
+            background: rgba(129,140,248,.12);
+            color: #a5b4fc;
+            border-color: rgba(129,140,248,.35);
+        }
+
+        .result-box {
+            background: var(--nebula-light);
+            border: 1px solid var(--edge);
+            border-radius: 16px;
+            padding: 24px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .result-box.show {
+            display: block;
+            animation: materialize 0.4s cubic-bezier(.2,.8,.3,1);
+        }
+
+        @keyframes materialize {
+            from { opacity: 0; transform: translateY(-8px) scale(.98); }
+            to { opacity: 1; transform: none; }
+        }
+
+        .result-item {
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(168,85,247,.15);
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .result-label {
+            font-weight: 600;
+            color: var(--orchid);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .result-value {
+            color: var(--starlight);
+            word-break: break-all;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            background: var(--void-deep);
+            padding: 10px 12px;
+            border-radius: 8px;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,.4);
+        }
+
+        .result-value a {
+            color: var(--orchid);
+            text-decoration: none;
+        }
+
+        .result-value a:hover {
+            text-decoration: underline;
+        }
+
+        .posts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 20px;
+            margin: 0 auto;
+            width:100%;
+            box-sizing: border-box;
+        }
+
+        .posts-grid::-webkit-scrollbar { width: 8px; }
+        .posts-grid::-webkit-scrollbar-track { background: var(--void-deep); border-radius: 8px; }
+        .posts-grid::-webkit-scrollbar-thumb { background: var(--violet-dim); border-radius: 8px; }
+
+        .post-card {
+            background: var(--nebula-light);
+            border: 1px solid var(--edge);
+            border-radius: 14px;
+            overflow: hidden;
+            transform-style: preserve-3d;
+            transition: transform .35s cubic-bezier(.2,.8,.3,1), box-shadow .35s;
+            box-shadow: 0 10px 20px rgba(0,0,0,.4);
+            position: static;
+            display: flex;
+            flex-direction: column;
+
+        }
+
+        .post-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(168,85,247,.35), 0 10px 20px rgba(0,0,0,.5);
+        }
+
+        .post-media {
+            width: 100%;
+            display: block;
+            height: auto;
+            object-fit: contain;
+            background: var(--void-deep);
+        }
+
+        .post-button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            background: linear-gradient(135deg, var(--violet), var(--orchid));
+            color: #1a0e2e;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: var(--font-display);
+            transition: filter 0.2s;
+        }
+
+        .post-button:hover {
+            filter: brightness(1.1);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 28px 20px;
+        }
+
+        .spinner {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 4px solid rgba(168,85,247,.15);
+            border-top-color: var(--violet);
+            border-right-color: var(--orchid);
+            margin: 0 auto;
+            transform: perspective(200px) rotateX(55deg);
+            animation: spin 0.9s linear infinite;
+            box-shadow: 0 0 20px rgba(168,85,247,.4);
+        }
+
+        @keyframes spin {
+            to { transform: perspective(200px) rotateX(55deg) rotate(360deg); }
+        }
+
+        .loading p {
+            margin-top: 14px;
+            color: var(--mist);
+            font-size: 14px;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        @media (max-width: 600px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                padding: 28px 22px;
+            }
+
+            h1 {
+                font-size: 21px;
+            }
+
+            .graph-icon svg {
+                width: 90px;
+                height: 52px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .bg-orbs span, .graph-icon .node {
+                animation: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-orbs" aria-hidden="true"><span></span><span></span><span></span></div>
+
+    <div class="container">
+        <div class="header">
+            <div class="graph-icon" aria-hidden="true">
+                <svg viewBox="0 0 120 70" width="110" height="64">
+                    <defs>
+                        <radialGradient id="nodeGrad" cx="35%" cy="35%" r="65%">
+                            <stop offset="0%" stop-color="#f5f2fb"/>
+                            <stop offset="45%" stop-color="#e879f9"/>
+                            <stop offset="100%" stop-color="#a855f7"/>
+                        </radialGradient>
+                    </defs>
+                    <line x1="20" y1="50" x2="60" y2="16" stroke="#a855f7" stroke-width="1.5" opacity="0.55"/>
+                    <line x1="60" y1="16" x2="100" y2="50" stroke="#818cf8" stroke-width="1.5" opacity="0.55"/>
+                    <line x1="20" y1="50" x2="100" y2="50" stroke="#e879f9" stroke-width="1.5" opacity="0.4"/>
+                    <circle class="node n1" cx="20" cy="50" r="8" fill="url(#nodeGrad)"/>
+                    <circle class="node n2" cx="60" cy="16" r="10" fill="url(#nodeGrad)"/>
+                    <circle class="node n3" cx="100" cy="50" r="8" fill="url(#nodeGrad)"/>
+                </svg>
+            </div>
+            <h1>Instagram GraphQL URL Converter</h1>
+            <p class="subtitle">Paste a post link, get the raw media URLs behind it</p>
+        </div>
+
+        <!-- Alerts -->
+        <div id="alert-container"></div>
+
+        <!-- Section 1: Convert URL -->
+        <div class="section">
+            <div class="section-title">Step 1: Convert Instagram URL</div>
+            <div class="input-group">
+                <input type="text" id="urlInput" placeholder="Enter Instagram post URL (e.g., https://www.instagram.com/p/DdRg7zoGsAu/)" />
+                <button class="btn-primary" onclick="convertUrl()">Convert</button>
+            </div>
+
+            <div id="graphqlOutput" class="output-box empty">GraphQL URL will appear here...</div>
+            <div class="two-column" style="margin-top: 10px;">
+                <button class="btn-secondary" onclick="copyUrl()">📋 Copy URL</button>
+                <button class="btn-secondary" onclick="openInBrowser()">🌐 Open in Browser</button>
+            </div>
+        </div>
+
+        <!-- Section 2: Process JSON -->
+        <div class="section">
+            <div class="section-title">Step 2: Paste JSON Response</div>
+            <textarea id="jsonInput" placeholder="Paste the JSON response from Instagram's GraphQL endpoint here..."></textarea>
+            <button class="btn-primary" onclick="processJson()" style="width: 100%; margin-top: 10px;">Process JSON</button>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Processing...</p>
+        </div>
+
+        <!-- Results -->
+        <div id="resultBox" class="result-box">
+            <div class="section-title">Extracted Data</div>
+            <div class="result-item">
+                <div class="result-label">Posted By</div>
+                <div class="result-value" id="username">-</div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">Full Name</div>
+                <div class="result-value" id="fullName">-</div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">Profile Picture</div>
+                <div class="result-value"><a id="profilePicUrl" href="#" target="_blank">View Profile Picture</a></div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">Post URLs</div>
+                <div id="postUrls"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let generatedUrl = null;
+
+        function showAlert(message, type = 'info') {
+            const alertContainer = document.getElementById('alert-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            alertContainer.appendChild(alert);
+
+            setTimeout(() => {
+                alert.style.animation = 'slideDown 0.3s ease-out reverse';
+                setTimeout(() => alert.remove(), 300);
+            }, 3500);
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+
+        async function convertUrl() {
+            const url = document.getElementById('urlInput').value.trim();
+
+            if (!url) {
+                showAlert('Please enter an Instagram post URL', 'error');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const response = await fetch('/convert', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: url })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'An error occurred');
+                }
+
+                generatedUrl = data.url;
+                const outputBox = document.getElementById('graphqlOutput');
+                outputBox.textContent = generatedUrl;
+                outputBox.classList.remove('empty');
+                showAlert('URL converted successfully!', 'success');
+            } catch (error) {
+                showAlert(error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function copyUrl() {
+            if (!generatedUrl) {
+                showAlert('Please convert a URL first', 'error');
+                return;
+            }
+
+            navigator.clipboard.writeText(generatedUrl).then(() => {
+                showAlert('URL copied to clipboard!', 'success');
+            }).catch(() => {
+                showAlert('Failed to copy URL', 'error');
+            });
+        }
+
+        function openInBrowser() {
+            if (!generatedUrl) {
+                showAlert('Please convert a URL first', 'error');
+                return;
+            }
+
+            window.open(generatedUrl, '_blank');
+            showAlert('Opening URL in a new tab...', 'info');
+        }
+
+        function isVideoUrl(url, mediaType = '') {
+            if (mediaType === 'video') return true;
+
+            const lowerUrl = String(url).toLowerCase();
+            return lowerUrl.includes('.mp4') || lowerUrl.includes('.m3u8') || lowerUrl.includes('/video/') || lowerUrl.includes('video');
+        }
+
+        async function processJson() {
+            const jsonText = document.getElementById('jsonInput').value.trim();
+
+            if (!jsonText) {
+                showAlert('Please paste a JSON response', 'error');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const response = await fetch('/process-json', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ json: jsonText })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'An error occurred');
+                }
+
+                document.getElementById('username').textContent = data.username;
+                document.getElementById('fullName').textContent = data.full_name;
+                document.getElementById('profilePicUrl').href = data.profile_pic_url;
+
+                const postUrlsContainer = document.getElementById('postUrls');
+                postUrlsContainer.innerHTML = '';
+                postUrlsContainer.classList.add('posts-grid');
+
+                data.post_urls.forEach((url, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'post-card';
+
+                    const shouldRenderVideo = isVideoUrl(url, data.media_type);
+
+                    if (shouldRenderVideo) {
+                        const video = document.createElement('video');
+                        video.src = url;
+                        video.className = 'post-media';
+                        video.controls = true;
+                        video.muted = true;
+                        video.playsInline = true;
+                        video.preload = 'metadata';
+                        video.alt = `Video ${index + 1}`;
+
+                        const btn = document.createElement('button');
+                        btn.className = 'post-button';
+                        btn.textContent = '⬇️ Download';
+                        btn.onclick = () => downloadMedia(url, `instagram_post_${index + 1}.mp4`);
+
+                        card.appendChild(video);
+                        card.appendChild(btn);
+                    } else {
+                        const img = document.createElement('img');
+                        img.src = url;
+                        img.className = 'post-media';
+                        img.alt = `Post ${index + 1}`;
+
+                        const btn = document.createElement('button');
+                        btn.className = 'post-button';
+                        btn.textContent = '⬇️ Download';
+                        btn.onclick = () => downloadMedia(url, `instagram_post_${index + 1}.jpg`);
+
+                        card.appendChild(img);
+                        card.appendChild(btn);
+                    }
+
+                    postUrlsContainer.appendChild(card);
+                });
+                document.getElementById('resultBox').classList.add('show');
+                showAlert('JSON processed successfully!', 'success');
+            } catch (error) {
+                showAlert(error.message, 'error');
+                document.getElementById('resultBox').classList.remove('show');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function downloadMedia(url, filename) {
+            fetch(url)
+                .then(response => response.blob())
+                .then(blob => {
+                    const urlObject = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = urlObject;
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(urlObject);
+                    showAlert(`Downloaded ${filename}!`, 'success');
+                })
+                .catch(() => showAlert('Failed to download media', 'error'));
+        }
+
+        // Allow Enter key to convert URL
+        document.getElementById('urlInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') convertUrl();
+        });
+    </script>
+</body>
+</html>
